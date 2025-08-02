@@ -1,10 +1,12 @@
 
-fastapi
+fastapi~=0.116.1
 uvicorn
-praw
+praw~=7.8.1
 qdrant-client
 sentence-transformers
 openai
-python-dotenv
+python-dotenv~=1.1.1
 mlflow
 
+
+pandas~=2.3.1

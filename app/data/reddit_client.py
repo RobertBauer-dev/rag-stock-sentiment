@@ -1,6 +1,9 @@
 # app/data/reddit_client.py
 
 import os
+from pathlib import Path
+
+import pandas as pd
 from dotenv import load_dotenv  # load vars from .env into env vars
 import praw  # Python Reddit API Wrapper
 from typing import List, Dict
@@ -23,6 +26,7 @@ reddit = praw.Reddit(
 
 print("Verbindung erfolgreich. Reddit user:", reddit.user.me())
 
+
 def search_stock_posts(keyword: str, limit: int = 20) -> List[Dict]:
     """
     Sucht nach Reddit-Posts zu einem bestimmten Aktien-Stichwort.
@@ -42,3 +46,23 @@ def search_stock_posts(keyword: str, limit: int = 20) -> List[Dict]:
         posts.append(post_data)
 
     return posts
+
+
+ROOT_FOLDER = Path(__file__).resolve().parent.parent.parent
+CSV_FOLDER = ROOT_FOLDER / "data" / "processed" / "csv"
+os.makedirs(CSV_FOLDER, exist_ok=True)
+
+
+def collect(search_query: str, dataset_name: str, limit: int = 50):
+    print(f"🔍 Suche Reddit-Posts zu: '{search_query}'")
+    posts = search_stock_posts(search_query, limit=limit)
+
+    if not posts:
+        raise ValueError("❌ Keine Posts gefunden – überprüfe deine Query oder Reddit-API!")
+
+    csv_path = CSV_FOLDER / f"{dataset_name}.csv"
+
+    # Speichern als CSV
+    df = pd.DataFrame(posts)
+    df.to_csv(csv_path, index=False)
+    print(f"✅ Reddit-Daten gespeichert unter {csv_path}")

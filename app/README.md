@@ -17,3 +17,4 @@ pkill -f "uvicorn"
 ```
 </pre>
 
+### 4. Run Qdrant Server

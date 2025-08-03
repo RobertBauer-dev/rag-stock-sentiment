@@ -1,12 +1,20 @@
+from pathlib import Path
+
 from sentence_transformers import SentenceTransformer
 import pandas as pd
 import numpy as np
 import os
 
+from app.data.reddit_client import CSV_FOLDER
+
+ROOT_FOLDER = Path(__file__).resolve().parent.parent.parent
+NPY_FOLDER = ROOT_FOLDER / "data" / "processed" / "npy"
+os.makedirs(NPY_FOLDER, exist_ok=True)
+
 
 def generate_embeddings(dataset_name: str, model_name: str = "all-MiniLM-L6-v2"):
-    csv_path = f"data/processed/csv/{dataset_name}.csv"
-    npy_path = f"data/processed/npy/{dataset_name}.npy"
+    csv_path = CSV_FOLDER / f"{dataset_name}.csv"
+    npy_path = NPY_FOLDER / f"{dataset_name}.npy"
 
     if not os.path.exists(csv_path):
         raise FileNotFoundError(f"❌ CSV-Datei nicht gefunden: {csv_path}")
@@ -23,7 +31,7 @@ def generate_embeddings(dataset_name: str, model_name: str = "all-MiniLM-L6-v2")
     embeddings = model.encode(texts, show_progress_bar=True)
 
     os.makedirs("data/processed/npy", exist_ok=True)
-    np.save(npy_path, embeddings)
+    np.save(str(npy_path), embeddings)
     print(f"✅ Embeddings gespeichert unter {npy_path}")
 
     return embeddings, df

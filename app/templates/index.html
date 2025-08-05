@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Sentiment RAG</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.completed { background-color: #28a745; color: white; }
+        .status.failed { background-color: #dc3545; color: white; }
+        .status.running { background-color: #ffc107; color: black; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📈 Stock Sentiment RAG</h1>
+        
+        <!-- Data Collection Section -->
+        <div class="section">
+            <h2>🔍 Collect Stock Data</h2>
+            <form id="collectForm">
+                <input type="text" id="stockSymbol" placeholder="Stock Symbol (e.g., TSLA, AAPL)" required>
+                <input type="text" id="searchQuery" placeholder="Search Query (optional, defaults to 'STOCK stock')">
+                <input type="number" id="limit" placeholder="Number of posts to collect (default: 50)" value="50">
+                <button type="submit">Start Data Collection</button>
+            </form>
+            <div id="collectResult"></div>
+        </div>
+
+        <!-- Pipeline Status Section -->
+        <div class="section">
+            <h2>📊 Pipeline Status</h2>
+            <button onclick="refreshStatus()">Refresh Status</button>
+            <div id="statusResult"></div>
+        </div>
+
+        <!-- Query Section -->
+        <div class="section">
+            <h2>❓ Ask Questions</h2>
+            <form id="queryForm">
+                <input type="text" id="queryStockSymbol" placeholder="Stock Symbol" required>
+                <textarea id="question" placeholder="Ask a question about the stock sentiment..." rows="4" required></textarea>
+                <input type="number" id="topK" placeholder="Number of similar posts to consider (default: 5)" value="5">
+                <button type="submit">Get Answer</button>
+            </form>
+            <div id="queryResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+
+        // Data Collection
+        document.getElementById('collectForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Verhindert, dass die Seite neu lädt
+            const resultDiv = document.getElementById('collectResult');
+            resultDiv.innerHTML = '<div class="info">Starting data collection...</div>';
+            
+            const data = {
+                stock_symbol: document.getElementById('stockSymbol').value,
+                search_query: document.getElementById('searchQuery').value || null,
+                limit: parseInt(document.getElementById('limit').value) || 50
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/collect-data`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ ${result.message}
+                            <br>Collection Name: ${result.collection_name}
+                            <br>Timestamp: ${result.timestamp}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${result.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network Error: ${error.message}</div>`;
+            }
+        });
+
+        // Query
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('queryResult');
+            resultDiv.innerHTML = '<div class="info">Processing query...</div>';
+            
+            const data = {
+                stock_symbol: document.getElementById('queryStockSymbol').value,
+                question: document.getElementById('question').value,
+                top_k: parseInt(document.getElementById('topK').value) || 5
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>📈 ${result.stock_symbol}</strong>
+                            <br><strong>Question:</strong> ${result.question}
+                            <br><strong>Answer:</strong>
+                            <br>${result.answer}
+                            <br><br><small>Based on ${result.context_posts} Reddit posts</small>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${result.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network Error: ${error.message}</div>`;
+            }
+        });
+
+        // Status Refresh
+        async function refreshStatus() {
+            const resultDiv = document.getElementById('statusResult');
+            resultDiv.innerHTML = '<div class="info">Loading status...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/collections`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    let statusHtml = '<div class="info">';
+                    if (result.collections.length === 0) {
+                        statusHtml += 'No collections found. Start by collecting data for a stock.';
+                    } else {
+                        statusHtml += `<strong>Found ${result.total} collection(s):</strong><br>`;
+                        for (const collection of result.collections) {
+                            statusHtml += `• ${collection}<br>`;
+                        }
+                    }
+                    statusHtml += '</div>';
+                    resultDiv.innerHTML = statusHtml;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${result.detail}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Network Error: ${error.message}</div>`;
+            }
+        }
+
+        // Load status on page load
+        refreshStatus();
+    </script>
+</body>
+</html> 

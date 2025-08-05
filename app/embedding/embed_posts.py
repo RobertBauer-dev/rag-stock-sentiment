@@ -6,6 +6,7 @@ import numpy as np
 import os
 
 from app.data.reddit_client import CSV_FOLDER
+from app.vector_store import upload_embeddings_with_payloads
 
 EMBEDDING_MODELS = {
     "all-MiniLM-L6-v2": {
@@ -71,4 +72,23 @@ def generate_embeddings(dataset_name: str):  # model_name: str = "all-MiniLM-L6-
     np.save(str(npy_path), embeddings)
     print(f"✅ Embeddings gespeichert unter {npy_path}")
 
+    return embeddings, df
+
+
+def process_and_store_embeddings(dataset_name: str):
+    """
+    Complete pipeline: generate embeddings and store them in vector store.
+    """
+    print(f"🔄 Processing embeddings for dataset: {dataset_name}")
+    
+    # Generate embeddings
+    embeddings, df = generate_embeddings(dataset_name)
+    
+    # Get CSV path
+    csv_path = CSV_FOLDER / f"{dataset_name}.csv"
+    
+    # Upload to vector store
+    upload_embeddings_with_payloads(embeddings, str(csv_path), dataset_name)
+    
+    print(f"✅ Complete pipeline finished for {dataset_name}")
     return embeddings, df

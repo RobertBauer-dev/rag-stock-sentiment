@@ -3,6 +3,7 @@ __pycache__/
 .env
 mlruns/
 .idea
+.DS_Store
 
 # ignore saved CSV- and NPY-files (generated data/embeddings)
 data/processed/csv/

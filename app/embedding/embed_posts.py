@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 import pandas as pd
 import numpy as np
 import os
+import mlflow
 
 from app.data.reddit_client import CSV_FOLDER
 from app.vector_store import upload_embeddings_with_payloads
@@ -78,17 +79,46 @@ def generate_embeddings(dataset_name: str):  # model_name: str = "all-MiniLM-L6-
 def process_and_store_embeddings(dataset_name: str):
     """
     Complete pipeline: generate embeddings and store them in vector store.
+    With MLflow-Tracking.
     """
-    print(f"🔄 Processing embeddings for dataset: {dataset_name}")
-    
-    # Generate embeddings
-    embeddings, df = generate_embeddings(dataset_name)
-    
-    # Get CSV path
-    csv_path = CSV_FOLDER / f"{dataset_name}.csv"
-    
-    # Upload to vector store
-    upload_embeddings_with_payloads(embeddings, str(csv_path), dataset_name)
-    
-    print(f"✅ Complete pipeline finished for {dataset_name}")
-    return embeddings, df
+    try:
+        with mlflow.start_run(run_name=f"embeddings_{dataset_name}"):
+            print(f"🔄 Processing embeddings for dataset: {dataset_name}")
+            
+            # Generate embeddings
+            print("📥 Loading and processing data...")
+            embeddings, df = generate_embeddings(dataset_name)
+            
+            # Get CSV path
+            csv_path = CSV_FOLDER / f"{dataset_name}.csv"
+            
+            # Logge Parameter
+            print("📊 Logging parameters to MLflow...")
+            mlflow.log_param("embedding_model", EMBEDDING_MODEL)
+            mlflow.log_param("dataset_name", dataset_name)
+            mlflow.log_param("num_posts", len(df))
+            mlflow.log_param("csv_path", str(csv_path))
+            
+            # Logge Artefakte (CSV und Embedding-Datei)
+            print("💾 Logging artifacts to MLflow...")
+            npy_path = f"data/processed/npy/{dataset_name}.npy"
+            if os.path.exists(csv_path):
+                mlflow.log_artifact(str(csv_path))
+            if os.path.exists(npy_path):
+                mlflow.log_artifact(npy_path)
+            
+            # Upload to vector store
+            print("🚀 Uploading to vector store...")
+            upload_embeddings_with_payloads(embeddings, str(csv_path), dataset_name)
+            
+            print(f"✅ Complete pipeline finished for {dataset_name}")
+            return embeddings, df
+            
+    except Exception as e:
+        print(f"❌ Error in process_and_store_embeddings: {str(e)}")
+        # Log error to MLflow if run is still active
+        try:
+            mlflow.log_param("error", str(e))
+        except:
+            pass
+        raise e

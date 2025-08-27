@@ -2,8 +2,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-import asyncio
-import threading
 from datetime import datetime
 
 from app.data.reddit_client import collect as collect_reddit_data

@@ -1,14 +1,21 @@
-
+# Web Framework
 fastapi~=0.116.1
-uvicorn
-praw~=7.8.1
-qdrant-client
-sentence-transformers
-openai
-python-dotenv~=1.1.1
-mlflow
+uvicorn[standard]~=0.27.0
 
-
+# Data Processing
 pandas~=2.3.1
-
 numpy~=2.3.2
+
+# Machine Learning & Embeddings
+sentence-transformers~=2.5.1
+mlflow~=2.10.0
+
+# Vector Database
+qdrant-client~=1.7.0
+
+# External APIs
+praw~=7.8.1
+openai~=1.51.0
+
+# Utilities
+python-dotenv~=1.1.1

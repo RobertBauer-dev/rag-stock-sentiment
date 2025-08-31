@@ -2,6 +2,79 @@
 
 Eine FastAPI-Anwendung zur Analyse von Aktien-Sentiment basierend auf Reddit-Posts mit RAG (Retrieval-Augmented Generation).
 
+## 🏛️ Architektur
+
+```mermaid
+graph TD
+    subgraph Frontend
+        A["index.html<br/>(Web UI)"]
+    end
+    
+    subgraph FastAPI Backend
+        B["main.py<br/>(FastAPI App)"]
+        C["api/routes.py<br/>(API Endpoints)"]
+        D["data/reddit_client.py<br/>(Reddit Fetch)"]
+        E["embedding/embed_posts.py<br/>(Embeddings)"]
+        F["vector_store/client.py<br/>(Qdrant Client)"]
+        G["rag/query_engine.py<br/>(RAG Engine)"]
+        H["llm/generator.py<br/>(LLM Generator)"]
+        I["utils/<br/>(Utilities)"]
+    end
+    
+    subgraph Scripts
+        J["scripts/collect_reddit_data.py<br/>(CLI Data Collection)"]
+        K["scripts/process_embeddings.py<br/>(CLI Embedding Processing)"]
+        L["scripts/query_rag.py<br/>(CLI RAG Queries)"]
+    end
+    
+    subgraph External Services
+        M["Reddit API"]
+        N["Qdrant<br/>(Vector DB)"]
+        O["OpenAI API<br/>(LLM)"]
+    end
+    
+    subgraph Data Storage
+        P["data/processed/csv<br/>(Temporary CSV)"]
+        Q["Qdrant<br/>(Single Source of Truth)"]
+    end
+
+    %% Web Interface Flow
+    A -- HTTP (Form/API) --> B
+    B -- include_router --> C
+    
+    %% API Data Collection Flow
+    C -- collect-data --> D
+    D -- fetches --> M
+    D -- saves CSV --> P
+    C -- process-embeddings --> E
+    E -- reads CSV --> P
+    E -- generates embeddings --> F
+    F -- uploads to Qdrant --> N
+    F -- stores all data --> Q
+    
+    %% API Query Flow
+    C -- query --> G
+    G -- search vectors --> N
+    G -- calls LLM --> H
+    H -- OpenAI API --> O
+    G -- returns answer --> C
+    C -- API Response --> A
+    
+    %% CLI Scripts Flow
+    J -- collects data --> D
+    K -- processes embeddings --> E
+    L -- queries RAG --> G
+    
+    %% Collection Management
+    M2["manage_collections.py<br/>(Collection Management)"] -. manages .-> Q
+    
+    %% Utilities
+    I -. utilities .-> D
+    I -. utilities .-> E
+    I -. utilities .-> G
+```
+
+
 ## 🏗️ Projektstruktur
 
 ```
@@ -140,78 +213,6 @@ curl -X POST "http://localhost:8000/api/query" \
     "question": "What is the sentiment around Tesla'\''s recent earnings?",
     "top_k": 5
   }'
-```
-
-## 🏛️ Architektur
-
-```mermaid
-graph TD
-    subgraph Frontend
-        A["index.html<br/>(Web UI)"]
-    end
-    
-    subgraph FastAPI Backend
-        B["main.py<br/>(FastAPI App)"]
-        C["api/routes.py<br/>(API Endpoints)"]
-        D["data/reddit_client.py<br/>(Reddit Fetch)"]
-        E["embedding/embed_posts.py<br/>(Embeddings)"]
-        F["vector_store/client.py<br/>(Qdrant Client)"]
-        G["rag/query_engine.py<br/>(RAG Engine)"]
-        H["llm/generator.py<br/>(LLM Generator)"]
-        I["utils/<br/>(Utilities)"]
-    end
-    
-    subgraph Scripts
-        J["scripts/collect_reddit_data.py<br/>(CLI Data Collection)"]
-        K["scripts/process_embeddings.py<br/>(CLI Embedding Processing)"]
-        L["scripts/query_rag.py<br/>(CLI RAG Queries)"]
-    end
-    
-    subgraph External Services
-        M["Reddit API"]
-        N["Qdrant<br/>(Vector DB)"]
-        O["OpenAI API<br/>(LLM)"]
-    end
-    
-    subgraph Data Storage
-        P["data/processed/csv<br/>(Temporary CSV)"]
-        Q["Qdrant<br/>(Single Source of Truth)"]
-    end
-
-    %% Web Interface Flow
-    A -- HTTP (Form/API) --> B
-    B -- include_router --> C
-    
-    %% API Data Collection Flow
-    C -- collect-data --> D
-    D -- fetches --> M
-    D -- saves CSV --> P
-    C -- process-embeddings --> E
-    E -- reads CSV --> P
-    E -- generates embeddings --> F
-    F -- uploads to Qdrant --> N
-    F -- stores all data --> Q
-    
-    %% API Query Flow
-    C -- query --> G
-    G -- search vectors --> N
-    G -- calls LLM --> H
-    H -- OpenAI API --> O
-    G -- returns answer --> C
-    C -- API Response --> A
-    
-    %% CLI Scripts Flow
-    J -- collects data --> D
-    K -- processes embeddings --> E
-    L -- queries RAG --> G
-    
-    %% Collection Management
-    M2["manage_collections.py<br/>(Collection Management)"] -. manages .-> Q
-    
-    %% Utilities
-    I -. utilities .-> D
-    I -. utilities .-> E
-    I -. utilities .-> G
 ```
 
 ## 🔧 Konfiguration

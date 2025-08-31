@@ -35,12 +35,12 @@ app/
 scripts/                   # Ausführbare Scripts
 ├── collect_reddit_data.py # Reddit-Daten sammeln
 ├── process_embeddings.py  # Embeddings verarbeiten
-└── query_rag.py          # RAG-Abfragen
+├── query_rag.py          # RAG-Abfragen
+└── manage_collections.py  # Qdrant-Collections verwalten
 
 data/                      # Datenverzeichnis
 ├── processed/
-│   ├── csv/              # Reddit-Daten als CSV
-│   └── npy/              # Embeddings als NumPy Arrays
+│   └── csv/              # Temporäre CSV-Dateien (werden in Qdrant gespeichert)
 ```
 
 ## 🚀 Schnellstart
@@ -93,6 +93,22 @@ python scripts/process_embeddings.py --list-available
 python scripts/process_embeddings.py aapl_20241201_143022
 ```
 
+### Collections verwalten
+
+```bash
+# Alle Collections auflisten
+python scripts/manage_collections.py list
+
+# Collection-Informationen anzeigen
+python scripts/manage_collections.py info aapl_20241201_143022
+
+# Collection zu CSV exportieren
+python scripts/manage_collections.py export aapl_20241201_143022
+
+# Collection löschen
+python scripts/manage_collections.py delete aapl_20241201_143022
+```
+
 ### RAG-Abfragen
 
 ```bash
@@ -133,34 +149,69 @@ graph TD
     subgraph Frontend
         A["index.html<br/>(Web UI)"]
     end
+    
     subgraph FastAPI Backend
         B["main.py<br/>(FastAPI App)"]
         C["api/routes.py<br/>(API Endpoints)"]
         D["data/reddit_client.py<br/>(Reddit Fetch)"]
         E["embedding/embed_posts.py<br/>(Embeddings)"]
-        F["vector_store/client.py<br/>(Qdrant Upload)"]
-        G["rag/query_engine.py<br/>(RAG)"]
-        H["llm/generator.py<br/>(LLM)"]
+        F["vector_store/client.py<br/>(Qdrant Client)"]
+        G["rag/query_engine.py<br/>(RAG Engine)"]
+        H["llm/generator.py<br/>(LLM Generator)"]
+        I["utils/<br/>(Utilities)"]
     end
+    
+    subgraph Scripts
+        J["scripts/collect_reddit_data.py<br/>(CLI Data Collection)"]
+        K["scripts/process_embeddings.py<br/>(CLI Embedding Processing)"]
+        L["scripts/query_rag.py<br/>(CLI RAG Queries)"]
+    end
+    
     subgraph External Services
-        I["Reddit API"]
-        J["Qdrant<br/>(Vector DB)"]
-        K["OpenAI API<br/>(LLM)"]
+        M["Reddit API"]
+        N["Qdrant<br/>(Vector DB)"]
+        O["OpenAI API<br/>(LLM)"]
+    end
+    
+    subgraph Data Storage
+        P["data/processed/csv<br/>(Temporary CSV)"]
+        Q["Qdrant<br/>(Single Source of Truth)"]
     end
 
+    %% Web Interface Flow
     A -- HTTP (Form/API) --> B
     B -- include_router --> C
+    
+    %% API Data Collection Flow
     C -- collect-data --> D
-    D -- fetches --> I
-    D -- saves CSV --> E
+    D -- fetches --> M
+    D -- saves CSV --> P
+    C -- process-embeddings --> E
+    E -- reads CSV --> P
     E -- generates embeddings --> F
-    F -- uploads vectors --> J
+    F -- uploads to Qdrant --> N
+    F -- stores all data --> Q
+    
+    %% API Query Flow
     C -- query --> G
-    G -- search vectors --> J
+    G -- search vectors --> N
     G -- calls LLM --> H
-    H -- OpenAI API --> K
+    H -- OpenAI API --> O
     G -- returns answer --> C
     C -- API Response --> A
+    
+    %% CLI Scripts Flow
+    J -- collects data --> D
+    K -- processes embeddings --> E
+    L -- queries RAG --> G
+    
+    %% Collection Management
+    M2["manage_collections.py<br/>(Collection Management)"] -. manages .-> Q
+    
+    %% Utilities
+    I -. utilities .-> D
+    I -. utilities .-> E
+    I -. utilities .-> G
 ```
 
 ## 🔧 Konfiguration
@@ -198,8 +249,17 @@ Das Projekt verwendet MLflow für Experiment-Tracking:
 
 ## 🔄 Workflow
 
-1. **Daten sammeln**: Reddit-Posts zu einer Aktie abrufen
+1. **Daten sammeln**: Reddit-Posts zu einer Aktie abrufen (temporär als CSV)
 2. **Embeddings generieren**: Posts in Vektoren umwandeln
-3. **Vector Store**: Embeddings in Qdrant speichern
+3. **Qdrant speichern**: Embeddings + Metadaten in Qdrant als Single Source of Truth
 4. **RAG-Abfragen**: Ähnliche Posts finden und LLM-Antworten generieren
+5. **Daten exportieren**: Bei Bedarf Daten aus Qdrant exportieren
+
+## 💾 Datenmanagement
+
+**Qdrant als Single Source of Truth:**
+- Alle Daten (Embeddings + Metadaten) werden in Qdrant gespeichert
+- CSV-Dateien sind nur temporär für die Verarbeitung
+- NPY-Dateien werden nicht mehr gespeichert (redundant)
+- Bei Bedarf können Daten aus Qdrant exportiert werden
 ```

@@ -59,11 +59,6 @@ class EmbeddingProcessor:
     def __init__(self, model_name: str = None):
         self.model_name = model_name or EmbeddingConfig.DEFAULT_MODEL
         self.model = SentenceTransformer(self.model_name)
-        
-        # Setup paths
-        self.root_folder = Path(__file__).resolve().parent.parent.parent
-        self.npy_folder = self.root_folder / "data" / "processed" / "npy"
-        os.makedirs(self.npy_folder, exist_ok=True)
     
     def generate_embeddings(self, dataset_name: str) -> Tuple[np.ndarray, pd.DataFrame]:
         """
@@ -76,7 +71,6 @@ class EmbeddingProcessor:
             Tuple of (embeddings, dataframe)
         """
         csv_path = CSV_FOLDER / f"{dataset_name}.csv"
-        npy_path = self.npy_folder / f"{dataset_name}.npy"
 
         if not os.path.exists(csv_path):
             raise FileNotFoundError(f"❌ CSV-Datei nicht gefunden: {csv_path}")
@@ -91,10 +85,7 @@ class EmbeddingProcessor:
         print(f"⚙️ Erzeuge {len(texts)} Embeddings ...")
         embeddings = self.model.encode(texts, show_progress_bar=True)
 
-        # Save embeddings
-        np.save(str(npy_path), embeddings)
-        print(f"✅ Embeddings gespeichert unter {npy_path}")
-
+        print(f"✅ Embeddings generiert für {len(texts)} Posts")
         return embeddings, df
     
     def process_and_store_embeddings(self, dataset_name: str) -> Tuple[np.ndarray, pd.DataFrame]:
@@ -116,7 +107,7 @@ class EmbeddingProcessor:
                 print("📥 Loading and processing data...")
                 embeddings, df = self.generate_embeddings(dataset_name)
                 
-                # Get CSV path
+                # Get CSV path for MLflow logging
                 csv_path = CSV_FOLDER / f"{dataset_name}.csv"
                 
                 # Log parameters
@@ -126,19 +117,17 @@ class EmbeddingProcessor:
                 mlflow.log_param("num_posts", len(df))
                 mlflow.log_param("csv_path", str(csv_path))
                 
-                # Log artifacts
-                print("💾 Logging artifacts to MLflow...")
-                npy_path = f"data/processed/npy/{dataset_name}.npy"
+                # Log CSV artifact for MLflow tracking
+                print("💾 Logging CSV artifact to MLflow...")
                 if os.path.exists(csv_path):
                     mlflow.log_artifact(str(csv_path))
-                if os.path.exists(npy_path):
-                    mlflow.log_artifact(npy_path)
                 
-                # Upload to vector store
+                # Upload to vector store (primary storage)
                 print("🚀 Uploading to vector store...")
                 upload_embeddings_with_payloads(embeddings, str(csv_path), dataset_name)
                 
                 print(f"✅ Complete pipeline finished for {dataset_name}")
+                print(f"💾 Data stored in Qdrant collection: {dataset_name}")
                 return embeddings, df
                 
         except Exception as e:

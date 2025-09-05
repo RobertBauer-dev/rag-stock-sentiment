@@ -8,3 +8,5 @@ mlruns/
 # ignore saved CSV- and NPY-files (generated data/embeddings)
 data/processed/csv/
 data/processed/npy/
+venv_old_python311/
+data/10q_reports/

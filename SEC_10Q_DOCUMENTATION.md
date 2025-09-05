@@ -24,7 +24,7 @@ Die **R1.htm bis R48.htm** Dateien sind die strukturierten Abschnitte des 10-Q R
 - **R2.htm** - Table of Contents (Inhaltsverzeichnis)
 
 #### Part I - Financial Information:
-- **R3.htm** - Part I, Item 1 (Financial Statements)
+- **<span style="color: #ff6b6b; font-weight: bold;">R3.htm - Part I, Item 1 (Financial Statements)</span>** 🎯
 - **R4.htm** - Part I, Item 2 (Management's Discussion and Analysis)
 - **R5.htm** - Part I, Item 3 (Quantitative and Qualitative Disclosures about Market Risk)
 - **R6.htm** - Part I, Item 4 (Controls and Procedures)
@@ -39,7 +39,7 @@ Die **R1.htm bis R48.htm** Dateien sind die strukturierten Abschnitte des 10-Q R
 - **R13.htm** - Part II, Item 6 (Exhibits)
 
 #### Financial Statements (R14-R48):
-- **R14-R20** - Income Statement, Balance Sheet, Cash Flow Statement
+- **<span style="color: #4ecdc4; font-weight: bold;">R14-R20 - Income Statement, Balance Sheet, Cash Flow Statement</span>** 🎯
 - **R21-R30** - Notes to Financial Statements
 - **R31-R48** - Supplementary Information und zusätzliche Details
 
@@ -77,7 +77,10 @@ Die **R1.htm bis R48.htm** Dateien sind die strukturierten Abschnitte des 10-Q R
 ### Priorität 1 (Beste Quellen):
 1. **`{ticker}-{date}.htm`** - Vollständiges Hauptdokument
 2. **`Financial_Report.xlsx`** - Bereits strukturierte Financial Data
-3. **R3.htm** - Part I, Item 1 (Financial Statements)
+3. **<span style="color: #ff6b6b; font-weight: bold;">R3.htm - Part I, Item 1 (Financial Statements)</span>** 🎯 **MUSS GESCRAPED WERDEN**
+
+### Priorität 1.5 (Kritische Financial Statements):
+4. **<span style="color: #4ecdc4; font-weight: bold;">R14-R20 - Income Statement, Balance Sheet, Cash Flow Statement</span>** 🎯 **MUSS GESCRAPED WERDEN**
 
 ### Priorität 2 (Strukturierte Abschnitte):
 - **R14-R20** - Wahrscheinlich die Financial Statements Abschnitte
@@ -121,6 +124,48 @@ Für maschinenlesbare Financial Data können Sie auch die XBRL-Dateien verwenden
 1. **Script anpassen** um `aapl-{date}.htm` oder `Financial_Report.xlsx` zu bevorzugen
 2. **XBRL-Parser** für strukturierte Daten implementieren
 3. **Multiple Quellen** kombinieren für robuste Extraktion
+
+## 🎨 Logging Features
+
+Das Script verwendet ein erweiterte farbige Logging-System mit intelligenten Emojis:
+
+### Farbkodierung der Log-Komponenten:
+- **🔵 Timestamp** (Blau) - Zeitstempel der Log-Nachricht
+- **🟣 Logger Name** (Magenta) - Name des Loggers (z.B. 'scrape_quarterlies')
+- **🟢 INFO Level** (Grün) - Informations-Level
+- **🟡 WARNING Level** (Gelb) - Warnungs-Level
+- **🔴 ERROR Level** (Rot) - Fehler-Level
+- **🔴 CRITICAL Level** (Hellrot) - Kritischer Fehler-Level
+- **🔵 Function Info** (Cyan) - Funktionsname und Zeilennummer
+
+### Intelligente Emoji-Zuordnung:
+- **🔎 CIK/Ticker Lookup** - Suchen nach Firmen-IDs
+- **✅ Success/Found/Saved** - Erfolgreiche Operationen
+- **📥 Fetching/Downloading/Processing** - Datenübertragung
+- **💰 Financial/Income/Balance/Cash Flow** - Finanzdaten
+- **📊 Tables/Extracting/Parsing** - Datenverarbeitung
+- **❌ Errors/Failed/Exceptions** - Fehler und Probleme
+- **⚠️ Warnings/Cautions/Fallbacks** - Warnungen
+- **🚀 Starting/Completed/Finished** - Prozess-Status
+- **📋 Listing/Available/Documents** - Dokumenten-Listen
+- **🌐 Network/Connection/Timeout** - Netzwerk-Operationen
+- **📁 Files/Paths/Directories** - Dateisystem-Operationen
+- **📄 JSON/Data/Metadata** - Datenstrukturen
+- **🔍 Debug Information** - Debugging-Details
+- **ℹ️ General Info** - Allgemeine Informationen
+- **🚨 Critical Issues** - Kritische Probleme
+
+### Beispiel-Logs:
+```
+2025-09-05 23:15:20 - scrape_quarterlies - INFO - get_cik_from_ticker:79 - 🔎 Looking up CIK for ticker: AAPL
+2025-09-05 23:15:20 - scrape_quarterlies - INFO - fetch_10q_by_quarter:200 - 📥 Fetching 10-Q for AAPL 2024Q2
+2025-09-05 23:15:20 - scrape_quarterlies - INFO - extract_financial_statements:544 - 💰 Found income statement in table 28
+2025-09-05 23:15:20 - scrape_quarterlies - INFO - extract_table_data:475 - ✅ Successfully extracted 25 items from income_statement
+```
+
+### Log-Dateien:
+- **Console**: Farbige Ausgabe mit Emojis für bessere Lesbarkeit
+- **File**: `data/10q_reports/scrape_quarterlies.log` - Vollständige Logs ohne Farben/Emojis
 
 ---
 

@@ -23,10 +23,10 @@ colorama.init(autoreset=True)
 
 # Custom colored formatter for console output
 class ColoredFormatter(logging.Formatter):
-    """Custom formatter with colors for different log levels."""
+    """Custom formatter with colors for different log levels and components."""
     
     # Color mapping for different log levels
-    COLORS = {
+    LEVEL_COLORS = {
         'DEBUG': Fore.CYAN,
         'INFO': Fore.GREEN,
         'WARNING': Fore.YELLOW,
@@ -38,14 +38,80 @@ class ColoredFormatter(logging.Formatter):
         # Get the original formatted message
         log_message = super().format(record)
         
-        # Add color based on log level
-        color = self.COLORS.get(record.levelname, '')
-        if color:
-            # Color the entire message
-            colored_message = f"{color}{log_message}{Style.RESET_ALL}"
-            return colored_message
+        # Split the log message into components
+        parts = log_message.split(' - ')
+        if len(parts) >= 4:
+            timestamp = parts[0]
+            logger_name = parts[1]
+            level = parts[2]
+            function_info = parts[3]
+            message = ' - '.join(parts[4:]) if len(parts) > 4 else ''
+            
+            # Add emojis based on log level and message content
+            emoji = self._get_emoji(record.levelname, message)
+            
+            # Color each component
+            colored_timestamp = f"{Fore.BLUE}{timestamp}{Style.RESET_ALL}"
+            colored_logger = f"{Fore.MAGENTA}{logger_name}{Style.RESET_ALL}"
+            
+            # Color the level based on its type
+            level_color = self.LEVEL_COLORS.get(record.levelname, '')
+            colored_level = f"{level_color}{level}{Style.RESET_ALL}"
+            
+            colored_function = f"{Fore.CYAN}{function_info}{Style.RESET_ALL}"
+            colored_message = f"{level_color}{emoji} {message}{Style.RESET_ALL}"
+            
+            # Reconstruct the colored message
+            colored_log_message = f"{colored_timestamp} - {colored_logger} - {colored_level} - {colored_function} - {colored_message}"
+            return colored_log_message
+        else:
+            # Fallback: color the entire message based on level
+            level_color = self.LEVEL_COLORS.get(record.levelname, '')
+            emoji = self._get_emoji(record.levelname, log_message)
+            if level_color:
+                return f"{level_color}{emoji} {log_message}{Style.RESET_ALL}"
+            return log_message
+    
+    def _get_emoji(self, level: str, message: str) -> str:
+        """Get appropriate emoji based on log level and message content."""
+        message_lower = message.lower()
         
-        return log_message
+        # Level-based emojis
+        level_emojis = {
+            'DEBUG': '🔍',
+            'INFO': 'ℹ️',
+            'WARNING': '⚠️',
+            'ERROR': '❌',
+            'CRITICAL': '🚨'
+        }
+        
+        # Content-based emojis (override level emojis for specific messages)
+        if any(word in message_lower for word in ['cik', 'ticker', 'looking up']):
+            return '🔎'
+        elif any(word in message_lower for word in ['found', 'successfully', 'saved', 'downloaded']):
+            return '✅'
+        elif any(word in message_lower for word in ['fetching', 'downloading', 'processing']):
+            return '📥'
+        elif any(word in message_lower for word in ['financial', 'income', 'balance', 'cash flow']):
+            return '💰'
+        elif any(word in message_lower for word in ['table', 'extracting', 'parsing']):
+            return '📊'
+        elif any(word in message_lower for word in ['error', 'failed', 'exception']):
+            return '❌'
+        elif any(word in message_lower for word in ['warning', 'caution', 'fallback']):
+            return '⚠️'
+        elif any(word in message_lower for word in ['starting', 'completed', 'finished']):
+            return '🚀'
+        elif any(word in message_lower for word in ['listing', 'available', 'documents']):
+            return '📋'
+        elif any(word in message_lower for word in ['network', 'connection', 'timeout']):
+            return '🌐'
+        elif any(word in message_lower for word in ['file', 'path', 'directory']):
+            return '📁'
+        elif any(word in message_lower for word in ['json', 'data', 'metadata']):
+            return '📄'
+        else:
+            return level_emojis.get(level, 'ℹ️')
 
 # Logging Setup
 def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None) -> logging.Logger:
@@ -115,7 +181,7 @@ def get_cik_from_ticker(ticker: str) -> str:
     logger.info(f"Looking up CIK for ticker: {ticker}")
     
     try:
-    url = "https://www.sec.gov/files/company_tickers.json"
+        url = "https://www.sec.gov/files/company_tickers.json"
         logger.debug(f"Making request to: {url}")
         
         response = requests.get(url, headers=HEADERS, timeout=30)
@@ -123,15 +189,15 @@ def get_cik_from_ticker(ticker: str) -> str:
         
         data = response.json()
         logger.debug(f"Retrieved {len(data)} company entries from SEC")
-        
-    for _, entry in data.items():
-        if entry["ticker"].upper() == ticker.upper():
-                cik = str(entry["cik_str"]).zfill(10)  # SEC braucht 10-stellig
-                logger.info(f"Found CIK {cik} for ticker {ticker}")
-                return cik
-        
-        logger.error(f"No CIK found for ticker {ticker}")
-    raise ValueError(f"No CIK found for ticker {ticker}")
+            
+        for _, entry in data.items():
+            if entry["ticker"].upper() == ticker.upper():
+                    cik = str(entry["cik_str"]).zfill(10)  # SEC braucht 10-stellig
+                    logger.info(f"Found CIK {cik} for ticker {ticker}")
+                    return cik
+            
+            logger.error(f"No CIK found for ticker {ticker}")
+        raise ValueError(f"No CIK found for ticker {ticker}")
 
     except requests.RequestException as e:
         logger.error(f"Failed to retrieve CIK data: {e}")
@@ -281,52 +347,51 @@ def fetch_10q_by_quarter(ticker: str, year: int, quarter: int) -> Optional[str]:
                         filing_response.raise_for_status()
                         filing_index = filing_response.json()
                         
-                        # Suche Hauptdokument (oft endet auf .htm und enthält "10-q" im Namen)
-                        for item in filing_index["directory"]["item"]:
-                            if item["name"].endswith(".htm") and "10-q" in item["name"].lower():
-                                doc_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{item['name']}"
-                                logger.info(f"Found main 10-Q document: {item['name']}")
-                                
-                                # Datei speichern mit Quartalsinformation
-                                filename = f"{ticker}_10Q_{year}Q{quarter}_{report_date}.html"
-                                file_path = os.path.join(REPORT_FOLDER, filename)
-                                
-                                logger.debug(f"Downloading document from: {doc_url}")
-                                doc_response = requests.get(doc_url, headers=HEADERS, timeout=60)
-                                doc_response.raise_for_status()
-                                content = doc_response.text
-                                
-                                with open(file_path, "w", encoding="utf-8") as f:
-                                    f.write(content)
-                                
-                                logger.info(f"Successfully saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
-                                print(f"✅ Saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
-                                print(f"   Report Date: {report_date}, Filing Date: {filing_date}")
-                                return file_path
+                        # Priorisiere die besten Dokumente für Financial Statements
+                        priority_docs = []
+                        other_docs = []
                         
-                        # Falls kein 10-q Dokument gefunden, nimm das erste .htm Dokument
-                        logger.warning("No main 10-Q document found, trying first .htm document")
                         for item in filing_index["directory"]["item"]:
                             if item["name"].endswith(".htm"):
-                                doc_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{item['name']}"
-                                logger.info(f"Using fallback document: {item['name']}")
-                                
-                                # Datei speichern mit Quartalsinformation
-                                filename = f"{ticker}_10Q_{year}Q{quarter}_{report_date}.html"
-                                file_path = os.path.join(REPORT_FOLDER, filename)
-                                
-                                logger.debug(f"Downloading fallback document from: {doc_url}")
-                                doc_response = requests.get(doc_url, headers=HEADERS, timeout=60)
-                                doc_response.raise_for_status()
-                                content = doc_response.text
-                                
-                                with open(file_path, "w", encoding="utf-8") as f:
-                                    f.write(content)
-                                
-                                logger.info(f"Successfully saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
-                                print(f"✅ Saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
-                                print(f"   Report Date: {report_date}, Filing Date: {filing_date}")
-                                return file_path
+                                # Höchste Priorität: Hauptdokument mit Ticker-Datum
+                                if item["name"].startswith(ticker.lower()) and report_date.replace("-", "") in item["name"]:
+                                    priority_docs.insert(0, item)  # An den Anfang
+                                # Hohe Priorität: R3.htm (Financial Statements)
+                                elif item["name"] == "R3.htm":
+                                    priority_docs.append(item)
+                                # Hohe Priorität: R14-R20 (Income Statement, Balance Sheet, Cash Flow)
+                                elif item["name"].startswith("R") and item["name"][1:3].isdigit():
+                                    r_num = int(item["name"][1:3])
+                                    if 14 <= r_num <= 20:
+                                        priority_docs.append(item)
+                                # Mittlere Priorität: 10-q im Namen
+                                elif "10-q" in item["name"].lower():
+                                    other_docs.insert(0, item)
+                                # Fallback: alle anderen .htm Dateien
+                                else:
+                                    other_docs.append(item)
+                        
+                        # Versuche zuerst die priorisierten Dokumente
+                        for item in priority_docs + other_docs:
+                            doc_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{item['name']}"
+                            logger.info(f"Found priority document: {item['name']}")
+                            
+                            # Datei speichern mit Quartalsinformation
+                            filename = f"{ticker}_10Q_{year}Q{quarter}_{report_date}_{item['name']}"
+                            file_path = os.path.join(REPORT_FOLDER, filename)
+                            
+                            logger.debug(f"Downloading document from: {doc_url}")
+                            doc_response = requests.get(doc_url, headers=HEADERS, timeout=60)
+                            doc_response.raise_for_status()
+                            content = doc_response.text
+                            
+                            with open(file_path, "w", encoding="utf-8") as f:
+                                f.write(content)
+                            
+                            logger.info(f"Successfully saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
+                            print(f"✅ Saved {ticker} 10-Q {year}Q{quarter} to {file_path}")
+                            print(f"   Report Date: {report_date}, Filing Date: {filing_date}")
+                            return file_path
         
         logger.warning(f"No 10-Q filing found for {ticker} {year}Q{quarter}")
         return None
@@ -337,6 +402,125 @@ def fetch_10q_by_quarter(ticker: str, year: int, quarter: int) -> Optional[str]:
     except Exception as e:
         logger.error(f"Unexpected error while fetching 10-Q for {ticker} {year}Q{quarter}: {e}")
         return None
+
+
+def fetch_all_financial_documents(ticker: str, year: int, quarter: int) -> List[str]:
+    """
+    Lädt alle wichtigen Financial Statement Dokumente für ein spezifisches Jahr und Quartal herunter.
+    
+    Args:
+        ticker (str): Aktiensymbol (z.B. 'AAPL')
+        year (int): Jahr (z.B. 2024)
+        quarter (int): Quartal (1, 2, 3, oder 4)
+    
+    Returns:
+        List[str]: Liste der Pfade zu den heruntergeladenen Dateien
+    """
+    logger.info(f"Fetching all financial documents for {ticker} {year}Q{quarter}")
+    
+    try:
+        cik = get_cik_from_ticker(ticker)
+        subs_url = f"https://data.sec.gov/submissions/CIK{cik}.json"
+        logger.debug(f"Fetching submissions from: {subs_url}")
+        
+        response = requests.get(subs_url, headers=HEADERS, timeout=30)
+        response.raise_for_status()
+        subs = response.json()
+
+        filings = subs["filings"]["recent"]
+        logger.debug(f"Found {len(filings['form'])} recent filings")
+        
+        # Erwartete Quartalsdaten basierend auf dem Jahr
+        quarter_months = {
+            1: ["01", "02", "03"],  # Q1: Jan, Feb, Mar
+            2: ["04", "05", "06"],  # Q2: Apr, May, Jun
+            3: ["07", "08", "09"],  # Q3: Jul, Aug, Sep
+            4: ["10", "11", "12"]   # Q4: Oct, Nov, Dec
+        }
+        
+        target_months = quarter_months.get(quarter, [])
+        if not target_months:
+            error_msg = f"Ungültiges Quartal: {quarter}. Muss 1, 2, 3 oder 4 sein."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.debug(f"Looking for 10-Q filings in months: {target_months}")
+        
+        for i, form in enumerate(filings["form"]):
+            if form == "10-Q":
+                report_date = filings["reportDate"][i]
+                filing_date = filings["filingDate"][i]
+                logger.debug(f"Found 10-Q filing: report_date={report_date}, filing_date={filing_date}")
+                
+                # Prüfe ob das Datum im gewünschten Quartal liegt
+                if report_date.startswith(str(year)):
+                    month = report_date[5:7]  # Extrahiere Monat (YYYY-MM-DD)
+                    if month in target_months:
+                        accession = filings["accessionNumber"][i].replace("-", "")
+                        filing_index_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/index.json"
+                        
+                        logger.debug(f"Fetching filing index from: {filing_index_url}")
+                        filing_response = requests.get(filing_index_url, headers=HEADERS, timeout=30)
+                        filing_response.raise_for_status()
+                        filing_index = filing_response.json()
+                        
+                        # Definiere die wichtigsten Financial Statement Dokumente
+                        priority_docs = [
+                            # Hauptdokument
+                            f"{ticker.lower()}-{report_date.replace('-', '')}.htm",
+                            # Financial Statements Abschnitte
+                            "R3.htm",  # Part I, Item 1 (Financial Statements)
+                            "R14.htm", "R15.htm", "R16.htm", "R17.htm", "R18.htm", "R19.htm", "R20.htm",  # Income Statement, Balance Sheet, Cash Flow
+                            # Excel Report
+                            "Financial_Report.xlsx"
+                        ]
+                        
+                        downloaded_files = []
+                        
+                        # Lade alle wichtigen Dokumente herunter
+                        for doc_name in priority_docs:
+                            for item in filing_index["directory"]["item"]:
+                                if item["name"] == doc_name:
+                                    doc_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{item['name']}"
+                                    logger.info(f"Downloading financial document: {item['name']}")
+                                    
+                                    # Datei speichern
+                                    filename = f"{ticker}_10Q_{year}Q{quarter}_{report_date}_{item['name']}"
+                                    file_path = os.path.join(REPORT_FOLDER, filename)
+                                    
+                                    logger.debug(f"Downloading from: {doc_url}")
+                                    doc_response = requests.get(doc_url, headers=HEADERS, timeout=60)
+                                    doc_response.raise_for_status()
+                                    content = doc_response.text if item["name"].endswith('.htm') else doc_response.content
+                                    
+                                    mode = "w" if item["name"].endswith('.htm') else "wb"
+                                    encoding = "utf-8" if item["name"].endswith('.htm') else None
+                                    
+                                    with open(file_path, mode, encoding=encoding) as f:
+                                        f.write(content)
+                                    
+                                    downloaded_files.append(file_path)
+                                    logger.info(f"Successfully saved {item['name']} to {file_path}")
+                                    print(f"✅ Downloaded {item['name']}")
+                                    break
+                        
+                        if downloaded_files:
+                            logger.info(f"Successfully downloaded {len(downloaded_files)} financial documents")
+                            print(f"📊 Downloaded {len(downloaded_files)} financial documents for {ticker} {year}Q{quarter}")
+                            return downloaded_files
+                        else:
+                            logger.warning(f"No priority financial documents found for {ticker} {year}Q{quarter}")
+                            return []
+        
+        logger.warning(f"No 10-Q filing found for {ticker} {year}Q{quarter}")
+        return []
+        
+    except requests.RequestException as e:
+        logger.error(f"Network error while fetching financial documents for {ticker} {year}Q{quarter}: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error while fetching financial documents for {ticker} {year}Q{quarter}: {e}")
+        return []
 
 
 def fetch_latest_10q(ticker):
@@ -444,7 +628,7 @@ def extract_financial_statements(file_path: str) -> Dict[str, Any]:
         
     except Exception as e:
         logger.error(f"Error extracting financial statements from {file_path}: {e}")
-            return {
+        return {
             'income_statement': {},
             'balance_sheet': {},
             'cash_flow': {},
@@ -588,25 +772,39 @@ if __name__ == "__main__":
         documents = list_filing_documents("AAPL", 2024, 2)
         
         if documents:
-            # Teste die neue Funktion mit einem verfügbaren Quartal
-            print("\nTesting fetch_10q_by_quarter for AAPL Q2 2024...")
-            logger.info("Testing fetch_10q_by_quarter for AAPL Q2 2024")
-            file_path = fetch_10q_by_quarter("AAPL", 2024, 2)
+            # Teste die neue Funktion: Alle wichtigen Financial Documents herunterladen
+            print("\n🎯 Testing fetch_all_financial_documents for AAPL Q2 2024...")
+            logger.info("Testing fetch_all_financial_documents for AAPL Q2 2024")
+            downloaded_files = fetch_all_financial_documents("AAPL", 2024, 2)
             
-            if file_path:
-                # Verarbeite die Datei und extrahiere Financial Statements
-                financial_data = process_10q_file(file_path)
-                print(f"✅ Successfully processed {file_path}")
-                print(f"📈 Found {len(financial_data['income_statement'])} income statement items")
-                print(f"💰 Found {len(financial_data['balance_sheet'])} balance sheet items")
-                print(f"💸 Found {len(financial_data['cash_flow'])} cash flow items")
+            if downloaded_files:
+                print(f"\n📊 Successfully downloaded {len(downloaded_files)} financial documents:")
+                for file_path in downloaded_files:
+                    print(f"   - {os.path.basename(file_path)}")
                 
-                logger.info(f"Processing complete - Income: {len(financial_data['income_statement'])}, "
-                           f"Balance: {len(financial_data['balance_sheet'])}, "
-                           f"Cash Flow: {len(financial_data['cash_flow'])}")
+                # Verarbeite das Hauptdokument (falls vorhanden)
+                main_doc = None
+                for file_path in downloaded_files:
+                    if "aapl-20240629.htm" in file_path:
+                        main_doc = file_path
+                        break
+                
+                if main_doc:
+                    print(f"\n📈 Processing main document: {os.path.basename(main_doc)}")
+                    financial_data = process_10q_file(main_doc)
+                    print(f"✅ Successfully processed {main_doc}")
+                    print(f"📈 Found {len(financial_data['income_statement'])} income statement items")
+                    print(f"💰 Found {len(financial_data['balance_sheet'])} balance sheet items")
+                    print(f"💸 Found {len(financial_data['cash_flow'])} cash flow items")
+                    
+                    logger.info(f"Processing complete - Income: {len(financial_data['income_statement'])}, "
+                               f"Balance: {len(financial_data['balance_sheet'])}, "
+                               f"Cash Flow: {len(financial_data['cash_flow'])}")
+                else:
+                    print("⚠️  No main document found for processing")
             else:
-                print("❌ No 10-Q file found for AAPL Q2 2024")
-                logger.warning("No 10-Q file found for AAPL Q2 2024")
+                print("❌ No financial documents found for AAPL Q2 2024")
+                logger.warning("No financial documents found for AAPL Q2 2024")
         else:
             print("❌ No documents found for AAPL Q2 2024")
             logger.warning("No documents found for AAPL Q2 2024")

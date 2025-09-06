@@ -14,8 +14,8 @@ from pathlib import Path
 # Add the data module to the path
 sys.path.append(str(Path(__file__).parent.parent / "data"))
 
-from warehouse_integration import ScrapingToWarehousePipeline
-from financial_data_warehouse import FinancialDataWarehouse
+from app.data.warehouse_integration import ScrapingToWarehousePipeline
+from app.financial.data_warehouse import FinancialDataWarehouse
 import pandas as pd
 import json
 from typing import List, Dict, Any, Optional

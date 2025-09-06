@@ -82,7 +82,7 @@ results = pipeline.scrape_multiple_quarters("AAPL", quarters)
 ### **2. Direkte Warehouse-Verwendung:**
 
 ```python
-from app.data.financial_data_warehouse import FinancialDataWarehouse
+from app.financial.data_warehouse import FinancialDataWarehouse
 
 # Warehouse initialisieren
 warehouse = FinancialDataWarehouse()

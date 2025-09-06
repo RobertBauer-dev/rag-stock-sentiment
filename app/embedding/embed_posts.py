@@ -10,7 +10,9 @@ import os
 import mlflow
 from typing import Tuple, Dict, Any
 
-from app.data.reddit_client import CSV_FOLDER
+from app.core.config import AppConfig
+
+CSV_FOLDER = AppConfig.RAG_DATA_DIR
 from app.vector_store.client import upload_embeddings_with_payloads
 
 

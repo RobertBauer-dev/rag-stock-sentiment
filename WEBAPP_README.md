@@ -207,7 +207,7 @@ app/webapp/templates/index.html
 app/webapp/main.py
 
 # Data Warehouse
-app/data/financial_data_warehouse.py
+app/financial/data_warehouse.py
 
 # Integration
 app/data/warehouse_integration.py

@@ -92,7 +92,7 @@ Die **R1.htm bis R48.htm** Dateien sind die strukturierten Abschnitte des 10-Q R
 
 ## 🔧 Verwendung im Script
 
-Das `scrape_quarterlies.py` Script priorisiert automatisch:
+Das `scripts/financial/scrape_quarterlies.py` Script priorisiert automatisch:
 
 1. **Hauptdokumente** mit "10-q" im Namen
 2. **Fallback** auf das erste verfügbare .htm Dokument

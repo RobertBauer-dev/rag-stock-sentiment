@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 
 # Add the app directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent / "app"))
+sys.path.append(str(Path(__file__).parent.parent.parent / "app"))
 
 from app.embedding.embed_posts import process_and_store_embeddings
 from app.utils.file_utils import list_files_by_pattern

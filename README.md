@@ -79,41 +79,62 @@ graph TD
 
 ```
 app/
-├── api/                    # API-Endpunkte
+├── core/                  # 🆕 ZENTRALE KERN-MODULE
 │   ├── __init__.py
-│   └── routes.py          # FastAPI Router
-├── data/                   # Datenverarbeitung
+│   ├── config.py         # Zentrale Konfiguration
+│   ├── logging.py        # Zentrales Logging
+│   └── exceptions.py     # Custom Exceptions
+│
+├── rag/                  # 🔄 RAG-SYSTEM (bereinigt)
 │   ├── __init__.py
-│   └── reddit_client.py   # Reddit API Client
-├── embedding/              # Embedding-Verarbeitung
+│   ├── reddit_client.py  # Reddit API Client (aus data/ verschoben)
+│   ├── embedding/        # Embedding-Verarbeitung
+│   │   ├── __init__.py
+│   │   └── embed_posts.py
+│   ├── vector_store/     # Vector Store
+│   │   ├── __init__.py
+│   │   └── client.py
+│   ├── query_engine.py   # RAG Query Engine
+│   └── llm/             # LLM-Integration
+│       ├── __init__.py
+│       └── generator.py
+│
+├── financial/            # 🆕 FINANCIAL DATA SYSTEM
 │   ├── __init__.py
-│   └── embed_posts.py     # Embedding-Generierung
-├── llm/                    # LLM-Integration
+│   ├── sec_scraper.py    # SEC 10-Q Scraper
+│   ├── data_warehouse.py # Financial Data Warehouse
+│   ├── kpi_calculator.py # KPI Calculator
+│   └── parsers/         # Financial Statement Parser
+│       ├── __init__.py
+│       └── financial_parser.py
+│
+├── webapp/              # 🔄 WEB APPLICATION
 │   ├── __init__.py
-│   └── generator.py       # OpenAI Integration
-├── rag/                    # RAG-System
-│   ├── __init__.py
-│   └── query_engine.py    # RAG Query Engine
-├── vector_store/           # Vector Store
-│   ├── __init__.py
-│   └── client.py          # Qdrant Client
-├── utils/                  # Hilfsfunktionen
-│   ├── __init__.py
-│   ├── datetime_utils.py  # Datum/Zeit Utilities
-│   └── file_utils.py      # Datei-Utilities
-├── templates/              # HTML Templates
-│   └── index.html         # Web Interface
-└── main.py                # FastAPI App
+│   ├── main.py         # FastAPI App
+│   ├── static/         # CSS, JS, Images
+│   └── templates/      # HTML Templates
+│
+└── utils/              # 🔄 GEMEINSAME UTILITIES
+    ├── __init__.py
+    ├── datetime_utils.py
+    └── file_utils.py
 
-scripts/                   # Ausführbare Scripts
-├── collect_reddit_data.py # Reddit-Daten sammeln
-├── process_embeddings.py  # Embeddings verarbeiten
-├── query_rag.py          # RAG-Abfragen
-└── manage_collections.py  # Qdrant-Collections verwalten
+scripts/                # 🔄 CLI SCRIPTS (neu strukturiert)
+├── rag/               # 🆕 RAG-spezifische Scripts
+│   ├── collect_reddit_data.py
+│   ├── process_embeddings.py
+│   └── query_rag.py
+└── financial/         # 🆕 Financial-spezifische Scripts
+    └── scrape_quarterlies.py
 
-data/                      # Datenverzeichnis
-├── processed/
-│   └── csv/              # Temporäre CSV-Dateien (werden in Qdrant gespeichert)
+data/                  # 🔄 DATA STORAGE
+├── rag/              # 🆕 RAG-Daten
+│   └── processed/csv/
+├── financial/        # 🆕 Financial-Daten
+│   ├── 10q_reports/
+│   └── financial_warehouse.db
+└── shared/           # 🆕 Gemeinsame Daten
+    └── config/
 ```
 
 ## 🚀 Schnellstart
@@ -149,21 +170,29 @@ docker run -p 6333:6333 qdrant/qdrant
 
 ## 🛠️ Scripts verwenden
 
-### Reddit-Daten sammeln
+### RAG-System (Reddit Sentiment Analysis)
 
 ```bash
-python scripts/collect_reddit_data.py AAPL --limit 100
-python scripts/collect_reddit_data.py TSLA --query "Tesla earnings" --limit 50
+# Reddit-Daten sammeln
+python scripts/rag/collect_reddit_data.py AAPL --limit 100
+python scripts/rag/collect_reddit_data.py TSLA --query "Tesla earnings" --limit 50
+
+# Embeddings verarbeiten
+python scripts/rag/process_embeddings.py --list-available
+python scripts/rag/process_embeddings.py aapl_20241201_143022
+
+# RAG-Abfragen
+python scripts/rag/query_rag.py "What is the sentiment around Tesla?" --collection tesla_20241201_143022 --show-context
 ```
 
-### Embeddings verarbeiten
+### Financial Data System (SEC 10-Q Analysis)
 
 ```bash
-# Verfügbare Datasets auflisten
-python scripts/process_embeddings.py --list-available
+# SEC-Dokumente scrapen
+python scripts/financial/scrape_quarterlies.py AAPL 2024 2 --fetch-all --extract
 
-# Embeddings für Dataset verarbeiten
-python scripts/process_embeddings.py aapl_20241201_143022
+# Verfügbare Dokumente auflisten
+python scripts/financial/scrape_quarterlies.py AAPL 2024 2 --list-docs
 ```
 
 ### Collections verwalten
@@ -180,12 +209,6 @@ python scripts/manage_collections.py export aapl_20241201_143022
 
 # Collection löschen
 python scripts/manage_collections.py delete aapl_20241201_143022
-```
-
-### RAG-Abfragen
-
-```bash
-python scripts/query_rag.py "What is the sentiment around Tesla?" --collection tesla_20241201_143022 --show-context
 ```
 
 ## 📊 Verwendungsbeispiel

@@ -8,9 +8,9 @@ import argparse
 from pathlib import Path
 
 # Add the app directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent / "app"))
+sys.path.append(str(Path(__file__).parent.parent.parent / "app"))
 
-from app.data.reddit_client import collect as collect_reddit_data
+from app.rag.reddit_client import collect as collect_reddit_data
 from app.utils.datetime_utils import generate_dataset_name
 
 

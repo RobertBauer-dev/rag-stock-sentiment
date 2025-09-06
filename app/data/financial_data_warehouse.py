@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 # Import the logger from scrape_quarterlies
 from scrape_quarterlies import logger
+from kpi_calculator import KPICalculator, KPIResult
 
 @dataclass
 class FinancialDataPoint:
@@ -43,6 +44,9 @@ class FinancialDataWarehouse:
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize KPI Calculator
+        self.kpi_calculator = KPICalculator()
         
         logger.info(f"🏗️ Initializing Financial Data Warehouse at: {self.db_path}")
         self._create_tables()
@@ -108,11 +112,28 @@ class FinancialDataWarehouse:
                 )
             """)
             
+            # KPIs table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS kpis (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    filing_id INTEGER,
+                    kpi_name TEXT,
+                    value REAL,
+                    unit TEXT,
+                    category TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (filing_id) REFERENCES filings (id)
+                )
+            """)
+            
             # Create indexes for better performance
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_filings_ticker_quarter_year ON filings(ticker, quarter, year)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_financial_statements_filing_id ON financial_statements(filing_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_financial_statements_type ON financial_statements(statement_type)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_financial_statements_account ON financial_statements(account_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_kpis_filing_id ON kpis(filing_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_kpis_name ON kpis(kpi_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_kpis_category ON kpis(category)")
             
             conn.commit()
             logger.info("✅ Database tables created successfully")
@@ -379,8 +400,112 @@ class FinancialDataWarehouse:
             """)
             stats['top_companies'] = dict(cursor.fetchall())
             
-            logger.info(f"📊 Database stats: {stats}")
-            return stats
+        logger.info(f"📊 Database stats: {stats}")
+        return stats
+    
+    def add_kpis(self, filing_id: int, financial_data: Dict[str, Any], 
+                 ticker: str, year: int, quarter: int):
+        """
+        Berechnet und speichert KPIs für ein Filing.
+        
+        Args:
+            filing_id (int): Filing ID
+            financial_data (Dict[str, Any]): Financial data
+            ticker (str): Stock ticker symbol
+            year (int): Year
+            quarter (int): Quarter
+        """
+        try:
+            # Berechne KPIs
+            kpis = self.kpi_calculator.calculate_kpis(financial_data, ticker, year, quarter)
+            
+            if not kpis:
+                logger.warning(f"No KPIs calculated for filing ID {filing_id}")
+                return
+            
+            # Speichere KPIs in der Datenbank
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                for kpi in kpis:
+                    cursor.execute("""
+                        INSERT INTO kpis (filing_id, kpi_name, value, unit, category)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (filing_id, kpi.kpi_name, kpi.value, kpi.unit, kpi.category))
+                
+                conn.commit()
+                logger.info(f"✅ Added {len(kpis)} KPIs for filing ID {filing_id}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error adding KPIs for filing ID {filing_id}: {e}")
+    
+    def get_kpis(self, ticker: str, kpi_name: str = None, 
+                 year: int = None, quarter: int = None) -> pd.DataFrame:
+        """
+        Holt KPIs für ein Unternehmen.
+        
+        Args:
+            ticker (str): Stock ticker symbol
+            kpi_name (str): Spezifischer KPI Name (optional)
+            year (int): Jahr Filter (optional)
+            quarter (int): Quartal Filter (optional)
+            
+        Returns:
+            pd.DataFrame: KPI Daten
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            query = """
+                SELECT k.*, f.ticker, f.quarter, f.year, f.report_date, c.company_name
+                FROM kpis k
+                JOIN filings f ON k.filing_id = f.id
+                JOIN companies c ON f.ticker = c.ticker
+                WHERE f.ticker = ?
+            """
+            params = [ticker]
+            
+            if kpi_name:
+                query += " AND k.kpi_name = ?"
+                params.append(kpi_name)
+            
+            if year:
+                query += " AND f.year = ?"
+                params.append(year)
+            
+            if quarter:
+                query += " AND f.quarter = ?"
+                params.append(quarter)
+            
+            query += " ORDER BY f.year DESC, f.quarter DESC, k.kpi_name"
+            
+            df = pd.read_sql_query(query, conn, params=params)
+            logger.info(f"📊 Retrieved {len(df)} KPI records for {ticker}")
+            return df
+    
+    def get_kpi_trends(self, ticker: str, kpi_name: str, quarters: int = 8) -> pd.DataFrame:
+        """
+        Holt KPI-Trends für ein Unternehmen.
+        
+        Args:
+            ticker (str): Stock ticker symbol
+            kpi_name (str): KPI Name
+            quarters (int): Anzahl der Quartale
+            
+        Returns:
+            pd.DataFrame: KPI Trend Daten
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            query = """
+                SELECT k.value, k.unit, f.quarter, f.year, f.report_date
+                FROM kpis k
+                JOIN filings f ON k.filing_id = f.id
+                WHERE f.ticker = ? AND k.kpi_name = ?
+                ORDER BY f.year DESC, f.quarter DESC
+                LIMIT ?
+            """
+            
+            df = pd.read_sql_query(query, conn, params=(ticker, kpi_name, quarters))
+            logger.info(f"📊 Retrieved {len(df)} trend points for {ticker} - {kpi_name}")
+            return df
 
 
 # Example usage

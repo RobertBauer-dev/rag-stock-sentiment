@@ -97,6 +97,9 @@ class ScrapingToWarehousePipeline:
                             # Add financial data to warehouse
                             self.warehouse.add_financial_data(filing_id, financial_data)
                             
+                            # Calculate and add KPIs
+                            self.warehouse.add_kpis(filing_id, financial_data, ticker, year, quarter)
+                            
                             logger.info(f"✅ Successfully stored {ticker} {year}Q{quarter} data in warehouse")
                         else:
                             logger.warning(f"⚠️ Could not parse filename: {filename}")

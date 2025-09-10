@@ -175,9 +175,10 @@ def get_logger(name: str = None) -> logging.Logger:
     
     logger = logging.getLogger(name)
     
-    # If logger has no handlers, set up default logging
-    if not logger.handlers:
-        setup_logging(logger_name=name)
+    # Only set up logging once for the root logger
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        setup_logging(logger_name="root")
     
     return logger
 
